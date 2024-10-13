@@ -1,7 +1,7 @@
 # Adaptive AI for Emergency Crowd Management in Real-time Virtual Environments
 
-[![Unity Build and Test](https://github.com/your-username/Adaptive-Crowd-Management-AI/actions/workflows/unity_ci.yml/badge.svg)](https://github.com/your-username/Adaptive-Crowd-Management-AI/actions/workflows/unity_ci.yml)
-[![Python Lint and Test](https://github.com/your-username/Adaptive-Crowd-Management-AI/actions/workflows/python_ci.yml/badge.svg)](https://github.com/your-username/Adaptive-Crowd-Management-AI/actions/workflows/python_ci.yml)
+[![Unity Build and Test](https://github.com/Nrew/Adaptive-Crowd-Management-AI/actions/workflows/unity_ci.yml/badge.svg)](https://github.com/Nrew/Adaptive-Crowd-Management-AI/actions/workflows/unity_ci.yml)
+[![Python Lint and Test](https://github.com/Nrew/Adaptive-Crowd-Management-AI/actions/workflows/python_ci.yml/badge.svg)](https://github.com/Nrew/Adaptive-Crowd-Management-AI/actions/workflows/python_ci.yml)
 
 ## Table of Contents
 
