@@ -1,0 +1,31 @@
+name: Unity Build and Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  unity-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        unity-version: [2021.3.0f1]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache Library
+        uses: actions/cache@v3
+        with:
+          path: Library
+          key: Library-${{ matrix.unity-version }}-${{ github.sha }}
+      - name: Setup Unity
+        uses: game-ci/unity-setup@v2
+        with:
+          unityVersion: ${{ matrix.unity-version }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Unit Tests
+        uses: game-ci/unity-test-runner@v2
+        with:
+          unityVersion: ${{ matrix.unity-version }}
+          testMode: playmode
