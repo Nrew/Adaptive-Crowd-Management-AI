@@ -1,0 +1,33 @@
+name: Python Lint and Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, 3.10]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r ai_models/requirements.txt
+          pip install -r dashboard/requirements.txt
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          flake8 ai_models/ dashboard/
+      - name: Run Tests
+        run: |
+          pip install pytest
+          pytest ai_models/ tests/
