@@ -16,7 +16,7 @@ class UnityEnvWrapper:
         
     def get_state(self) -> np.ndarray:
         """
-        Get the current satte from the enviroment.
+        Get the current state from the environment.
 
         Returns:
             np.ndarray: A Numpy representation of the current state.
