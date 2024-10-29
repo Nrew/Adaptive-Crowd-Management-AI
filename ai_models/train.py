@@ -1,7 +1,7 @@
 import torch 
 from ppo import PPO
 from agent import Agent
-from enviroment import UnityEnviroment
+from ai_models.enviroment.unity_wrapper import UnityEnviroment
 from typing import List
 
 def compute_advantages(rewards: List[float], values: List[float], gamma: float = 0.99) -> torch.Tensor:
