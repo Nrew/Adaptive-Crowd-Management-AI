@@ -1,21 +1,13 @@
 import torch
 import torch.nn as nn
-from typing import Tuple
+from typing import Protocol, Tuple
 from dataclasses import dataclass
 
-@dataclass(frozen=True)
-class AgentProfile:
-    """
-    Immutable agent personaility configuration
-    """
-    base_panic_threshold: float # Base threshold for panic behvaior
-    social_influence: float # How much an agent is influenced by others (0-1)
-    helping_tendency: float # Probablity of helping others
-    decision_speed: float # How quickly agent makes decisions
-    risk_aversion: float # Tendency to avoid dangerous situations
-    emotional_stability: float # Resistance to panic (0-1)
-    leadership_score: float # Influence on other agents (0-1)
-
+class AgentState(Protocol):
+    """Protocol defining required agent state interface."""
+    position: Tuple[float, float]
+    velocity: Tuple[float, float]
+    panic_level: float
 
 class Agent(nn.Module):
     def __init__(self, input_dim: int, output_dim: int):
