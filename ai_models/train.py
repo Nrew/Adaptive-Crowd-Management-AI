@@ -4,6 +4,8 @@ from agent import Agent
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
 from typing import List
+from mlagents_envs.base_env import ActionTuple
+import numpy as np
 
 def compute_advantages(rewards: List[float], values: List[float], gamma: float = 0.99) -> torch.Tensor:
     advantages = []
@@ -41,6 +43,8 @@ def main():
 
     behavior_name = list(env.behavior_specs.keys())[0]
     spec = env.behavior_specs[behavior_name]
+    print(f"Action spec:\n\tContinuous: {spec.action_spec.continuous_size}\n\tDiscrete: {spec.action_spec.discrete_branches}")
+    print(f"\nFull Action spec: {spec.action_spec}")
 
     input_dim = spec.observation_specs[0].shape[0]
     output_dim = 2  #spec.action_spec.continuous_size
@@ -62,9 +66,8 @@ def main():
             states, actions, rewards, log_probs, values = [],[],[],[],[]
             done = False
             steps = 0
-
+            print(f"Training episode {episode}")
             while not done and steps < 1000:
-                print(f"Training episode {episode}")
                 state = decision_steps.obs[0][0]
 
                 # get action from policy
@@ -72,8 +75,13 @@ def main():
                 action, log_prob = policy_network.act(state_tensor)
 
                 # take action
-                action_array = action.detach().numpy()
-                env.set_actions(behavior_name, [action_array])
+                action_array = action.detach().reshape(1,2)
+                continuous_action = np.zeros((1,2))
+                continuous_action[0] = action_array
+                discrete_actions = np.zeros((1,1), dtype=np.float32)
+                discrete_actions[0,0] = 0
+                action_tuple = ActionTuple(continuous=continuous_action, discrete=discrete_actions)
+                env.set_actions(behavior_name, action_tuple)
 
                 # next state and reward
                 env.step()
@@ -86,8 +94,8 @@ def main():
                 else:
                     reward = decision_steps.reward[0] if len(decision_steps) > 0 else 0.0
                 
-                states.append(state)
-                actions.append(action)
+                states.append(torch.from_numpy(state).float())
+                actions.append(action.detach().clone())
                 rewards.append(reward)
                 log_probs.append(log_prob)
                 values.append(value_network(state_tensor).item())
@@ -95,8 +103,8 @@ def main():
             if len(states) > 0:
                 advantages = compute_advantages(rewards, values)
                 rewards_tensor = torch.tensor(rewards, dtype=torch.float32)
-                states_tensor = torch.tensor(states, dtype=torch.float32)
-                actions_tensor = torch.tensor(actions, dtype=torch.int64)
+                states_tensor = torch.stack(states)
+                actions_tensor = torch.stack(actions)
                 log_probs_tensor = torch.tensor([lp.item() for lp in log_probs], dtype=torch.float32)
                 
                 ppo.update(states_tensor, actions_tensor, log_probs_tensor, rewards_tensor, advantages)
