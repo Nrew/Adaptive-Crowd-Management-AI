@@ -21,18 +21,20 @@ class Agent(nn.Module):
         super(Agent, self).__init__()
         self.network = nn.Sequential(
             nn.Linear(input_dim, 128),
-            nn.ReLU,
+            nn.ReLU(),
             nn.Linear(128,64),
             nn.ReLU(),
             nn.Linear(64, output_dim),
-            nn.Softmax(dim=-1)
+            nn.Tanh()
         )
+        self.log_std = nn.Parameter(torch.zeros(output_dim))
+
     def forward(self, state: torch.Tensor) -> torch.Tensor:
         return self.network(state)
     
     def act(self, state: torch.Tensor) -> Tuple[int, torch.Tensor]:
         """
-        Select an action based on the policy network's output.
+        Select continuous actions based on the policy network's output.
 
         Args:
             state (torch.Tensor): The state to act on.
@@ -40,7 +42,11 @@ class Agent(nn.Module):
         Returns:
             Tuple[int, torch.Tensor]: Selected action and the log probability.
         """
-        action_probs = self.forward(state)
-        action_dist = torch.distributions.Categorical(action_probs)
-        action = action_dist.sample()
-        return action.item(), action_dist.log_prob(action)
+        action_mean = self.forward(state)
+        action_std = torch.exp(self.log_std)
+        dist = torch.distributions.Normal(action_mean, action_std)
+        # action_probs = self.forward(state)
+        # action_dist = torch.distributions.Categorical(action_probs)
+        action = dist.sample()
+        log_prob = dist.log_prob(action).sum()
+        return action, log_prob
