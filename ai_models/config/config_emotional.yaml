@@ -1,0 +1,31 @@
+emotional:
+  network:
+    hidden_size: 128
+    num_layers: 2
+    dropout: 0.1
+  
+  weights:
+    hazard_influence: 0.3
+    social_influence: 0.2
+    stamina_influence: 0.1
+    panic_to_stress: 0.4
+    stress_to_stamina: 0.05
+    decay_rate: 0.05
+  
+  weights_path: "checkpoints/emotional_weights.pt"
+  
+  # Training parameters
+  learning_rate: 1.0e-4
+  batch_size: 32
+  train_frequency: 100  # Update every N steps
+  
+  thresholds:
+    panic_threshold: 0.7
+    critical_stress: 0.8
+    minimum_stamina: 0.2
+  
+  social:
+    influence_radius: 5.0
+    max_nearby_agents: 10
+    leadership_weight: 0.3
+    helping_bonus: 0.2
