@@ -46,7 +46,7 @@ class PPO:
         Returns:
             torch.Tensor: Combined policy and value loss.
         """
-        # print(f"States in policy network: {self.policy_network(states)}")
+        print(f"States in policy network: {self.policy_network(states)}")
         action_mean = self.policy_network(states)
         action_std = torch.exp(self.policy_network.log_std)
         dist = torch.distributions.Normal(action_mean, action_std)
