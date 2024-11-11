@@ -46,10 +46,11 @@ def main():
     print(f"Action spec:\n\tContinuous: {spec.action_spec.continuous_size}\n\tDiscrete: {spec.action_spec.discrete_branches}")
     print(f"\nFull Action spec: {spec.action_spec}")
 
-    input_dim = spec.observation_specs[0].shape[0]
+    input_dim = spec.observation_specs[0].shape[0] # 8 input dimensions
+    print(f"Input dimensions: {spec.observation_specs[0].shape[0]} ")
     output_dim = 2  #spec.action_spec.continuous_size
     
-    policy_network = Agent(input_dim, output_dim)
+    policy_network = Agent(input_dim, output_dim) # 8 input dim, 2 output dim
     value_network = Agent(input_dim, 1)
     ppo = PPO(policy_network, value_network)
 
@@ -58,6 +59,8 @@ def main():
         for episode in range(1000):
             env.reset()
             decision_steps, terminal_steps = env.get_steps(behavior_name)
+            print(f"Decision steps: {decision_steps} \n\n\t Obs: {decision_steps.obs} \n\n\t Obs[0][0] = {decision_steps.obs[0][0]}")
+            print(f"Obs shape: {decision_steps.obs[0][0].shape}")
 
             if len(decision_steps) == 0:
                 print("No agents found in environment")

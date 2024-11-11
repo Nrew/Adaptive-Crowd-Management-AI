@@ -42,11 +42,11 @@ class Agent(nn.Module):
         Returns:
             Tuple[int, torch.Tensor]: Selected action and the log probability.
         """
+        # print(f"Here is the state: {state} \n After forward: {self.forward(state)}")
         action_mean = self.forward(state)
         action_std = torch.exp(self.log_std)
         dist = torch.distributions.Normal(action_mean, action_std)
-        # action_probs = self.forward(state)
-        # action_dist = torch.distributions.Categorical(action_probs)
+        # print(f"Action distribution: {dist, dist.loc, dist.scale}")
         action = dist.sample()
         log_prob = dist.log_prob(action).sum()
         return action, log_prob

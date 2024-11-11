@@ -46,7 +46,12 @@ class PPO:
         Returns:
             torch.Tensor: Combined policy and value loss.
         """
-        log_prob_new = self.policy_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
+        # print(f"States in policy network: {self.policy_network(states)}")
+        action_mean = self.policy_network(states)
+        action_std = torch.exp(self.policy_network.log_std)
+        dist = torch.distributions.Normal(action_mean, action_std)
+        log_prob_new = dist.log_prob(actions).sum(-1)
+
         ratio = torch.exp(log_prob_new - log_prob_old)
         clipped_ratio = torch.clamp(ratio, 1 - self.clip_epsilon, 1 + self.clip_epsilon)
         policy_loss = -torch.min(ratio * adavntages, clipped_ratio * adavntages).mean()
