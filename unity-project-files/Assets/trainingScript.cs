@@ -16,7 +16,7 @@ public class RollerAgent : Agent
     public float forceMultiplier = 10;
 
 
-    public Vector3 areacenter = new Vector3(-40f, 0f, 12f);
+    public Vector3 areacenter = new Vector3(-4f, 2f, 2f);
     public Vector2 areaSize = new Vector2(10f, 10f);
     private static bool targetAreaCreated = false;
     public GameObject targetAreaVisual;
@@ -38,11 +38,17 @@ public class RollerAgent : Agent
     }
     public override void OnEpisodeBegin()
     {
+        this.rBody.angularVelocity = Vector3.zero;
+        this.rBody.linearVelocity = Vector3.zero;
+        this.transform.localPosition = new Vector3(Random.Range(-10, 0), 2f, Random.Range(30f, 40f));
+
+
         if (this.transform.localPosition.y < 0)
         {
             this.rBody.angularVelocity = Vector3.zero;
             this.rBody.linearVelocity = Vector3.zero;
-            this.transform.localPosition = new Vector3(0, 0.5f, 0);
+            this.transform.localPosition = new Vector3(Random.Range(-10, 0), 2f, Random.Range(30f, 40f));
+
         }
 
     }
@@ -52,8 +58,7 @@ public class RollerAgent : Agent
         // Set the position and scale of the target area
         targetAreaVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
         targetAreaVisual.transform.localScale = new Vector3(areaSize.x, .1f, areaSize.y);
-        targetAreaVisual.transform.position = new Vector3(areacenter.x, areacenter.y, areacenter.z);
-
+        targetAreaVisual.transform.position = areacenter;
         // Make it green and transparent to easily identify it
         Renderer renderer = targetAreaVisual.GetComponent<Renderer>();
         renderer.material.color = Color.green;
@@ -79,9 +84,9 @@ public class RollerAgent : Agent
         float halfLength = areaSize.y / 2;
 
         return agentPos.x >= (areacenter.x - halfWidth)
-            && agentPos.y >= (areacenter.z - halfLength)
+            && agentPos.z >= (areacenter.z - halfLength)
             && agentPos.x <= (areacenter.x + halfWidth)
-            && agentPos.y <= (areacenter.z + halfLength);
+            && agentPos.z <= (areacenter.z + halfLength);
     }
     private bool AllAgentsInTargetArea()
     {
@@ -90,6 +95,7 @@ public class RollerAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actionBuffers)
     {
+        float distanceToTarget = Vector3.Distance(this.transform.localPosition, areacenter);
         if (!hasReachedTargetArea)
         {
             Vector3 controlSignal = Vector3.zero;
@@ -125,8 +131,17 @@ public class RollerAgent : Agent
         }
         else if (!hasReachedTargetArea)
         {
+            float previousDistance = Vector3.Distance(this.transform.localPosition - rBody.linearVelocity * Time.fixedDeltaTime, areacenter);
+            float distanceReward = (previousDistance - distanceToTarget);
             float distanceToAreaCenter = Vector3.Distance(this.transform.localPosition, areacenter);
-            AddReward(-0.001f * distanceToAreaCenter);
+
+            AddReward(distanceReward * 0.1f);
+            AddReward(-0.001f);
+
+            if(distanceToAreaCenter > 30f)
+            {
+                AddReward(-0.1f);
+            }
         }
 
 

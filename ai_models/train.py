@@ -32,7 +32,7 @@ def main():
     print("Successfully connected to Unity environment")
 
     channel.set_configuration_parameters(
-        time_scale=5.0,
+        time_scale=20.0,
         width=720,
         height=480,
         quality_level=0,
@@ -46,11 +46,11 @@ def main():
     print(f"Action spec:\n\tContinuous: {spec.action_spec.continuous_size}\n\tDiscrete: {spec.action_spec.discrete_branches}")
     print(f"\nFull Action spec: {spec.action_spec}")
 
-    input_dim = spec.observation_specs[0].shape[0] # 8 input dimensions
+    input_dim = spec.observation_specs[0].shape[0] # 9 input dimensions
     print(f"Input dimensions: {spec.observation_specs[0].shape[0]} ")
     output_dim = 2  #spec.action_spec.continuous_size
     
-    policy_network = Agent(input_dim, output_dim) # 8 input dim, 2 output dim
+    policy_network = Agent(input_dim, output_dim) # 9 input dim, 2 output dim
     value_network = Agent(input_dim, 1)
     ppo = PPO(policy_network, value_network)
 
@@ -71,6 +71,8 @@ def main():
             steps = 0
             print(f"Training episode {episode}")
             while not done and steps < 1000:
+                if steps % 40 == 0:
+                    print(f"Step: {steps}")
                 state = decision_steps.obs[0][0]
 
                 # get action from policy
@@ -81,9 +83,9 @@ def main():
                 action_array = action.detach().reshape(1,2)
                 continuous_action = np.zeros((1,2))
                 continuous_action[0] = action_array
-                discrete_actions = np.zeros((1,1), dtype=np.float32)
-                discrete_actions[0,0] = 0
-                action_tuple = ActionTuple(continuous=continuous_action, discrete=discrete_actions)
+                # discrete_actions = np.zeros((1,0), dtype=np.float32)
+                # discrete_actions[0,0] = 0
+                action_tuple = ActionTuple(continuous=continuous_action, discrete=None)
                 env.set_actions(behavior_name, action_tuple)
 
                 # next state and reward
@@ -102,6 +104,7 @@ def main():
                 rewards.append(reward)
                 log_probs.append(log_prob)
                 values.append(value_network(state_tensor).item())
+                steps += 1
                 
             if len(states) > 0:
                 advantages = compute_advantages(rewards, values)
@@ -109,7 +112,6 @@ def main():
                 states_tensor = torch.stack(states)
                 actions_tensor = torch.stack(actions)
                 log_probs_tensor = torch.tensor([lp.item() for lp in log_probs], dtype=torch.float32)
-                
                 ppo.update(states_tensor, actions_tensor, log_probs_tensor, rewards_tensor, advantages)
                 print(f"Episode {episode} completed with {len(states)} steps and final reward {sum(rewards):.2f}")
 
