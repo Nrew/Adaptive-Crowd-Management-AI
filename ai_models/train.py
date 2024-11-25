@@ -26,13 +26,13 @@ def main():
         worker_id=0,
         base_port=5004,
         no_graphics=False,
-        timeout_wait=15,
+        timeout_wait=60,
         seed=12345
     )
     print("Successfully connected to Unity environment")
 
     channel.set_configuration_parameters(
-        time_scale=20.0,
+        time_scale=30.0,
         width=720,
         height=480,
         quality_level=0,
@@ -43,7 +43,7 @@ def main():
 
     behavior_name = list(env.behavior_specs.keys())[0]
     spec = env.behavior_specs[behavior_name]
-    print(f"Action spec:\n\tContinuous: {spec.action_spec.continuous_size}\n\tDiscrete: {spec.action_spec.discrete_branches}")
+    print(f"Action spec:\n\tContinuous: {spec.action_spec.continuous_size} \n\tDiscrete: {spec.action_spec.discrete_branches}")
     print(f"\nFull Action spec: {spec.action_spec}")
 
     input_dim = spec.observation_specs[0].shape[0] # 9 input dimensions
@@ -56,11 +56,11 @@ def main():
 
     
     try:
-        for episode in range(1000):
+        for episode in range(1001):
             env.reset()
             decision_steps, terminal_steps = env.get_steps(behavior_name)
-            print(f"Decision steps: {decision_steps} \n\n\t Obs: {decision_steps.obs} \n\n\t Obs[0][0] = {decision_steps.obs[0][0]}")
-            print(f"Obs shape: {decision_steps.obs[0][0].shape}")
+            # print(f"Decision steps: {decision_steps} \n\n\t Obs: {decision_steps.obs} \n\n\t Obs[0][0] = {decision_steps.obs[0][0]}")
+            # print(f"Obs shape: {decision_steps.obs[0][0].shape}")
 
             if len(decision_steps) == 0:
                 print("No agents found in environment")
@@ -69,23 +69,30 @@ def main():
             states, actions, rewards, log_probs, values = [],[],[],[],[]
             done = False
             steps = 0
-            print(f"Training episode {episode}")
-            while not done and steps < 1000:
-                if steps % 40 == 0:
-                    print(f"Step: {steps}")
-                state = decision_steps.obs[0][0]
 
-                # get action from policy
-                state_tensor = torch.tensor(state, dtype=torch.float32)
-                action, log_prob = policy_network.act(state_tensor)
+
+            print(f"Training episode {episode}")
+            while not done and steps <= 1000:
+                if steps % 100 == 0:
+                    print(f"Step: {steps}")
+                # state = decision_steps.obs[0][0]
+                state = decision_steps.obs[0]
+
+                current_actions = []
+                log_probs_batch = []
+
+                for agent_index in range(len(state)):
+                    state_tensor = torch.tensor(state[agent_index], dtype=torch.float32)
+                    action, log_prob = policy_network.act(state_tensor)
+                    current_actions.append(action)
+                    log_probs_batch.append(log_prob)
+
+                # # get action from policy for each individual agent
+                action_array = np.stack([a.detach().numpy() for a in current_actions])
+                continuous_actions = action_array.reshape(len(current_actions), 2)
 
                 # take action
-                action_array = action.detach().reshape(1,2)
-                continuous_action = np.zeros((1,2))
-                continuous_action[0] = action_array
-                # discrete_actions = np.zeros((1,0), dtype=np.float32)
-                # discrete_actions[0,0] = 0
-                action_tuple = ActionTuple(continuous=continuous_action, discrete=None)
+                action_tuple = ActionTuple(continuous=continuous_actions, discrete=None)
                 env.set_actions(behavior_name, action_tuple)
 
                 # next state and reward
@@ -95,15 +102,15 @@ def main():
                 done = len(terminal_steps) > 0
 
                 if done:
-                    reward = terminal_steps.reward[0]
+                    reward = terminal_steps.reward
                 else:
-                    reward = decision_steps.reward[0] if len(decision_steps) > 0 else 0.0
-                
-                states.append(torch.from_numpy(state).float())
-                actions.append(action.detach().clone())
-                rewards.append(reward)
-                log_probs.append(log_prob)
-                values.append(value_network(state_tensor).item())
+                    reward = decision_steps.reward if len(decision_steps) > 0 else np.zeros(len(actions))
+                for agent_index in range(len(state)):
+                    states.append(torch.from_numpy(state[agent_index]).float())
+                    actions.append(current_actions[agent_index].detach().clone())
+                    rewards.append(reward[agent_index])
+                    log_probs.append(log_probs_batch[agent_index])
+                    values.append(value_network(torch.tensor(state[agent_index])).item())
                 steps += 1
                 
             if len(states) > 0:
