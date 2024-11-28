@@ -32,7 +32,7 @@ def main():
     print("Successfully connected to Unity environment")
 
     channel.set_configuration_parameters(
-        time_scale=30.0,
+        time_scale=10.0,
         width=720,
         height=480,
         quality_level=0,

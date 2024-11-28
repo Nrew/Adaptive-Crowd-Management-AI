@@ -16,7 +16,7 @@ public class RollerAgent : Agent
     public float forceMultiplier = 10;
 
 
-    public Vector3 areacenter = new Vector3(-4f, 2f, 2f);
+    public Vector3 areacenter = new(-5f, 2f, 2f);
     public Vector2 areaSize = new Vector2(10f, 10f);
     private static bool targetAreaCreated = false;
     public GameObject targetAreaVisual;
@@ -29,6 +29,7 @@ public class RollerAgent : Agent
     void Start()
     {
         rBody = GetComponent<Rigidbody>();
+        areacenter = new(-5f, 2f, 2f);
         if (!targetAreaCreated)
         {
             CreateTargetArea();
@@ -55,10 +56,13 @@ public class RollerAgent : Agent
 
     void CreateTargetArea()
     {
+        Debug.Log($"Creating target area at position: {areacenter}");
         // Set the position and scale of the target area
         targetAreaVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
         targetAreaVisual.transform.localScale = new Vector3(areaSize.x, .1f, areaSize.y);
+
         targetAreaVisual.transform.position = areacenter;
+        targetAreaVisual.transform.parent = transform.parent;
         // Make it green and transparent to easily identify it
         Renderer renderer = targetAreaVisual.GetComponent<Renderer>();
         renderer.material.color = Color.green;
@@ -108,7 +112,9 @@ public class RollerAgent : Agent
         {
             hasReachedTargetArea = true;
             agentsInTargetArea.Add(this);
-            SetReward(10.0f);
+            SetReward(100.0f);
+            this.rBody.linearVelocity = Vector3.zero;
+            Destroy(this.GetComponent<Collider>());
 
             if (AllAgentsInTargetArea())
             {
@@ -131,17 +137,19 @@ public class RollerAgent : Agent
         }
         else if (!hasReachedTargetArea)
         {
-            float previousDistance = Vector3.Distance(this.transform.localPosition - rBody.linearVelocity * Time.fixedDeltaTime, areacenter);
-            float distanceReward = (previousDistance - distanceToTarget);
-            float distanceToAreaCenter = Vector3.Distance(this.transform.localPosition, areacenter);
+            //float previousDistance = Vector3.Distance(this.transform.localPosition - rBody.linearVelocity * Time.fixedDeltaTime, areacenter);
+            //float distanceReward = (previousDistance - distanceToTarget);
+            //float distanceToAreaCenter = Vector3.Distance(this.transform.localPosition, areacenter);
 
-            AddReward(distanceReward * 0.1f);
-            AddReward(-0.001f);
+            //AddReward(distanceReward * 0.001f);
+            float velocityReward = rBody.linearVelocity.magnitude * 0.01f;
+            AddReward(velocityReward);
+            AddReward(-0.01f);
 
-            if(distanceToAreaCenter > 30f)
-            {
-                AddReward(-0.1f);
-            }
+            //if (distanceToAreaCenter > 30f)
+            //{
+            //    AddReward(-0.01f);
+            //}
         }
 
 
