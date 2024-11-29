@@ -1,9 +1,6 @@
-"""Agent profile definitions and factories."""
-
 from dataclasses import dataclass
 import numpy as np
 import torch
-
 
 @dataclass(frozen=True)
 class AgentProfile:
@@ -11,12 +8,12 @@ class AgentProfile:
     Immutable agent personaility traits configuration.
     """
     base_panic_threshold: float # Base threshold for panic behvaior
-    social_influence: float # How much an agent is influenced by others (0-1)
-    helping_tendency: float # Probablity of helping others
-    decision_speed: float # How quickly agent makes decisions
-    risk_aversion: float # Tendency to avoid dangerous situations
-    emotional_stability: float # Resistance to panic (0-1)
-    leadership_score: float # Influence on other agents (0-1)
+    social_influence: float     # How much an agent is influenced by others (0-1)
+    helping_tendency: float     # Probablity of helping others
+    decision_speed: float       # How quickly agent makes decisions
+    risk_aversion: float        # Tendency to avoid dangerous situations
+    emotional_stability: float  # Resistance to panic (0-1)
+    leadership_score: float     # Influence on other agents (0-1)
 
     def to_tensor(self, device: torch.device) -> torch.Tensor:
         """
