@@ -1,51 +1,5 @@
-from typing import Protocol, NamedTuple
 import torch
 from dataclasses import dataclass
-
-
-class EmotionalStateProtocol(Protocol):
-    """
-    Protocol defining interface for emotional states.
-    """
-    
-    @property
-    def panic(self) -> float:
-        """
-        Get panic level.
-
-        Returns:
-            float: _description_
-        """
-        ...
-    @property
-    def stress(self) -> float:
-        """
-        Get stress level.
-
-        Returns:
-            float: _description_
-        """
-        ...
-    @property
-    def stamina(self) -> float:
-        """
-        Get staminal level.
-
-        Returns:
-            float: _description_
-        """
-        ...
-    def to_tensor(self, device: torch.device) -> torch.Tensor:
-        """
-        Convert state to tensor.
-
-        Args:
-            device (torch.device): _description_
-
-        Returns:
-            torch.Tensor: _description_
-        """
-        ...
 
 @dataclass
 class EmotionalState:
