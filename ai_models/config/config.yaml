@@ -5,6 +5,10 @@ environment:
   no_graphics: false
   seed: 12345
   time_scale: 10.0
+  width: 720
+  height: 480
+  quality_level: 0
+  target_frame_rate: 60
 
 agent:
   use_enn: true  # Set to true to use PPOAgent with ENN

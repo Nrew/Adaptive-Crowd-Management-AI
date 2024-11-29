@@ -1,33 +1,29 @@
-# trainer.py
-
 import os
 import sys
 import signal
 import yaml
 import logging
-from typing import List, Optional
+from typing import List
 
 import torch
 import torch.nn.functional as F
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
-from ai_models.agents import PPOAgent
-from ai_models.agents.ENNAgent import PPOAgentWithENN
-from ai_models.enviroment.unity_wrapper import UnityEnvironmentWrapper
+from agents import PPOAgent
+from agents.ENNAgent import PPOAgentWithENN
+from enviroment.unity_wrapper import UnityEnvironmentWrapper
 from ppo import PPO
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
 
-
 def load_config(config_path: str) -> dict:
     """Load configuration from a YAML file."""
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
-
 
 def compute_gae(
     rewards: List[float],
@@ -64,7 +60,6 @@ def save_model(model: torch.nn.Module, input_dim: int, model_name: str) -> None:
         dynamic_axes={'input': {0: 'batch_size'},
                       'output': {0: 'batch_size'}}
     )
-
 
 class Trainer:
     """Trainer class to manage the training process."""
@@ -159,12 +154,7 @@ class Trainer:
             steps = 0
             done = False
 
-            states = []
-            actions = []
-            rewards = []
-            log_probs = []
-            values = []
-            dones = []
+            states, actions, rewards, log_probs, values, dones = []
 
             logger.info(f"Starting Episode {episode}")
 
@@ -250,7 +240,7 @@ class Trainer:
 
 
 if __name__ == "__main__":
-    config_path = 'config.yaml'
+    config_path = 'ai_models\config\config.yaml'
     config = load_config(config_path)
     trainer = Trainer(config)
     trainer.train()
