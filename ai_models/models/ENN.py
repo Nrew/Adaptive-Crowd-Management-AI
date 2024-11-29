@@ -5,9 +5,7 @@ import torch.nn as nn
 from dataclasses import dataclass
 from typing import Tuple, Dict, Optional, NamedTuple, TypeVar
 
-from ai_models.models.processors import FeatureProcessor
-
-T = TypeVar('T', bound=torch.Tensor)
+from .processor import FeatureProcessor
 
 @dataclass(slots=True) 
 class SafetyBounds:
@@ -193,7 +191,7 @@ class HazardProcessor(FeatureProcessor):
     """
     def __init__(self, hidden_dim: int, dropout: float = 0.1):
         super(HazardProcessor, self).__init__(
-            input_dim=3, # Position: [X, Y] + Intensity: (1)
+            input_dim=3,            # Position: [X, Y] + Intensity: (1)
             hidden_dim=hidden_dim,
             output_dim=hidden_dim,
             dropout=dropout)
@@ -204,7 +202,7 @@ class SocialProcessor(FeatureProcessor):
     """
     def __init__(self, hidden_dim: int, dropout: float = 0.1):
         super(SocialProcessor, self).__init__(
-            input_dim=10, # EmotionalState (3) + Profile (7)
+            input_dim=10,            # EmotionalState (3) + Profile (7)
             hidden_dim=hidden_dim,
             output_dim=hidden_dim,
             dropout=dropout)
@@ -217,7 +215,7 @@ class EmotionalPredictor(FeatureProcessor):
         super(EmotionalPredictor, self).__init__(
             input_dim=hidden_dim * 3, # Combined features
             hidden_dim=hidden_dim,
-            output_dim=3, # [panic, stress, stamina]
+            output_dim=3,             # [panic, stress, stamina]
             dropout=dropout)
 
 
@@ -284,16 +282,6 @@ class EmotionalNetwork(nn.Module):
         
         self.register_buffer('stats', torch.zeros(4))  # [hits, misses, time, count]
         
-        # JIT compile key methods
-        self.__compile_methods()
-        
-    def __compile_methods(self):
-        """
-        JIT compile performance critical methods.
-        """
-        self.process_batch = torch.jit.script(self._process_batch)
-        self.process_attention = torch.jit.script(self._process_attention)
-    @torch.jit.script
     def _process_hazards(
         self,
         hazards: torch.Tensor,  # [batch_size, num_hazards, 3]
@@ -303,30 +291,15 @@ class EmotionalNetwork(nn.Module):
         Process hazard information with caching and masking.
         Returns processed features and hazard influence.
         """
-        # Calculate distances and intensities
-        distances = torch.norm(hazards[..., :2], dim=-1, keepdim=True)  # [batch_size, num_hazards, 1]
-        intensities = hazards[..., 2:3]  # [batch_size, num_hazards, 1]
-        
-        # Calculate hazard influence with inverse square law
-        influence = intensities / (1.0 + distances.pow(2))
-        
-        if hazard_mask is not None:
-            influence = influence * hazard_mask.unsqueeze(-1)
-        
-        # Process through network
-        hazard_input = torch.cat([
-            hazards[..., :2],  # positions
-            influence,         # scaled intensities
-        ], dim=-1)
-        
-        features = self.hazard_processor(hazard_input)
-        
-        # Apply max pooling over hazards to get fixed-size representation
-        pooled_influence = torch.max(influence, dim=1)[0]  # [batch_size, 1]
-        
-        return features, pooled_influence
+        cached_features = self.hazard_cache.get(hazards)
+        if cached_features is not None:
+            return cached_features
+            
+        # Calculate if not cached
+        features, influence = self._calculate_hazard_features(hazards, hazard_mask)
+        self.hazard_cache.put(hazards, (features, influence))
+        return features, influence
 
-    @torch.jit.script
     def _process_social(
         self,
         states: torch.Tensor,          # [batch_size, num_agents, 3]

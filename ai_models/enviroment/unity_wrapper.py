@@ -1,11 +1,22 @@
 import numpy as np
-import torch
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
 from mlagents_envs.base_env import ActionTuple
 
 class UnityEnvironmentWrapper:
-    def __init__(self, file_name=None, worker_id=0, base_port=5004, no_graphics=False, seed=12345, time_scale=1.0):
+    def __init__(
+        self,
+        file_name=None,
+        worker_id=0,
+        base_port=5004,
+        no_graphics=False,
+        seed=12345,
+        time_scale=1.0,
+        width=720,
+        height=480,
+        quality_level=0,
+        target_frame_rate=60
+    ) -> None:
         self.channel = EngineConfigurationChannel()
         self.env = UnityEnvironment(
             file_name=file_name,
@@ -18,7 +29,13 @@ class UnityEnvironmentWrapper:
         self.env.reset()
         self.behavior_name = list(self.env.behavior_specs.keys())[0]
         self.spec = self.env.behavior_specs[self.behavior_name]
-        self.channel.set_configuration_parameters(time_scale=time_scale)
+        self.channel.set_configuration_parameters(
+            time_scale=time_scale,
+            width=width,
+            height=height,
+            quality_level=quality_level,
+            target_frame_rate=target_frame_rate
+        )
         self.decision_steps, self.terminal_steps = self.env.get_steps(self.behavior_name)
         self.agent_ids = self.decision_steps.agent_id
         self.num_agents = len(self.agent_ids)

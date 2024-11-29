@@ -1,15 +1,36 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional, Tuple
 
-from ai_models.agents import EmotionalState
-from ai_models.models.ENN import EmotionalNetwork
+from .EmotionalState import EmotionalState
+from models.ENN import EmotionalNetwork
 
 class PPOAgentWithENN(nn.Module):
-    def __init__(self, observation_dim, action_dim, hidden_size=128, enn_config=None):
+    """Proximal Policy Optimization Agent with Emotional Neural Network."""
+
+    def __init__(
+        self,
+        observation_dim: int,
+        action_dim: int,
+        hidden_size: int = 128,
+        enn_config: Optional[dict] = None
+    ) -> None:
+        """Initialize the PPOAgentWithENN.
+
+        Args:
+            observation_dim (int): Dimension of the observation space.
+            action_dim (int): Dimension of the action space.
+            hidden_size (int, optional): Size of the hidden layers. Defaults to 128.
+            enn_config (Optional[dict], optional): Configuration for the Emotional Network.
+                Defaults to None.
+        """
         super(PPOAgentWithENN, self).__init__()
+
         self.enn = EmotionalNetwork(enn_config)
-        self.emotional_state = EmotionalState.create_initial().to_tensor(torch.device('cpu')).unsqueeze(0)
+        self.emotional_state = EmotionalState.create_initial().to_tensor(
+            torch.device('cpu')
+        ).unsqueeze(0)
 
         # Feature extractors
         self.obs_feature_extractor = nn.Sequential(
@@ -43,7 +64,24 @@ class PPOAgentWithENN(nn.Module):
         # Value network head
         self.value_head = nn.Linear(hidden_size, 1)
 
-    def forward(self, observation, nearby_agents=None, nearby_hazards=None):
+    def forward(
+        self,
+        observation: torch.Tensor,
+        nearby_agents: Optional[torch.Tensor] = None,
+        nearby_hazards: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass through the policy and value networks.
+
+        Args:
+            observation (torch.Tensor): The input observation tensor.
+            nearby_agents (Optional[torch.Tensor], optional): Information about nearby agents.
+                Defaults to None.
+            nearby_hazards (Optional[torch.Tensor], optional): Information about nearby hazards.
+                Defaults to None.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: The action mean and the value estimate.
+        """
         # Update emotional state using ENN
         self.emotional_state = self.enn(
             self.emotional_state,
@@ -54,7 +92,9 @@ class PPOAgentWithENN(nn.Module):
 
         # Feature extraction
         obs_features = self.obs_feature_extractor(observation)
-        emotion_features = self.emotion_feature_extractor(self.emotional_state.squeeze(0))
+        emotion_features = self.emotion_feature_extractor(
+            self.emotional_state.squeeze(0)
+        )
 
         # Combine features
         combined_features = torch.cat([obs_features, emotion_features], dim=-1)
@@ -66,10 +106,33 @@ class PPOAgentWithENN(nn.Module):
 
         return action_mean, value
 
-    def act(self, observation, nearby_agents=None, nearby_hazards=None):
-        action_mean, value = self.forward(observation, nearby_agents, nearby_hazards)
+    def act(
+        self,
+        observation: torch.Tensor,
+        nearby_agents: Optional[torch.Tensor] = None,
+        nearby_hazards: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Select an action based on the current policy.
+
+        Args:
+            observation (torch.Tensor): The input observation tensor.
+            nearby_agents (Optional[torch.Tensor], optional): Information about nearby agents.
+                Defaults to None.
+            nearby_hazards (Optional[torch.Tensor], optional): Information about nearby hazards.
+                Defaults to None.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+                The sampled action, log probability, and value estimate.
+        """
+        action_mean, value = self.forward(
+            observation,
+            nearby_agents,
+            nearby_hazards
+        )
         action_std = torch.ones_like(action_mean) * 0.1
         dist = torch.distributions.Normal(action_mean, action_std)
         action = dist.sample()
         log_prob = dist.log_prob(action).sum(dim=-1)
+
         return action, log_prob, value
