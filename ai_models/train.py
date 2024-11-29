@@ -1,119 +1,256 @@
-import torch 
-from ppo import PPO
-from agent import Agent
-from mlagents_envs.environment import UnityEnvironment
-from mlagents_envs.side_channel.engine_configuration_channel import EngineConfigurationChannel
-from typing import List
-from mlagents_envs.base_env import ActionTuple
-import numpy as np
+# trainer.py
 
-def compute_advantages(rewards: List[float], values: List[float], gamma: float = 0.99) -> torch.Tensor:
+import os
+import sys
+import signal
+import yaml
+import logging
+from typing import List, Optional
+
+import torch
+import torch.nn.functional as F
+import numpy as np
+from torch.utils.tensorboard import SummaryWriter
+
+from ai_models.agents import PPOAgent
+from ai_models.agents.ENNAgent import PPOAgentWithENN
+from ai_models.enviroment.unity_wrapper import UnityEnvironmentWrapper
+from ppo import PPO
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
+
+
+def load_config(config_path: str) -> dict:
+    """Load configuration from a YAML file."""
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
+
+
+def compute_gae(
+    rewards: List[float],
+    values: List[float],
+    dones: List[bool],
+    gamma: float,
+    lam: float
+) -> torch.Tensor:
+    """Compute Generalized Advantage Estimation (GAE)."""
     advantages = []
-    discounted_sum = 0
-    for reward, value in zip(reversed(rewards), reversed(values)):
-        discounted_sum = reward + gamma * discounted_sum
-        advantages.insert(0, discounted_sum - value)
+    gae = 0
+    next_value = 0
+    for step in reversed(range(len(rewards))):
+        mask = 1.0 - float(dones[step])
+        delta = rewards[step] + gamma * next_value * mask - values[step]
+        gae = delta + gamma * lam * gae * mask
+        advantages.insert(0, gae)
+        next_value = values[step]
     return torch.tensor(advantages, dtype=torch.float32)
 
-def main():
-    print("Starting training script...")
-    print("Attempting to connect to Unity environment...")
-    channel = EngineConfigurationChannel()
-    print("Channel connected...")
-    env = UnityEnvironment(
-        file_name=None,
-        side_channels=[channel],
-        worker_id=0,
-        base_port=5004,
-        no_graphics=False,
-        timeout_wait=15,
-        seed=12345
-    )
-    print("Successfully connected to Unity environment")
 
-    channel.set_configuration_parameters(
-        time_scale=5.0,
-        width=720,
-        height=480,
-        quality_level=0,
-        target_frame_rate=60
+def save_model(model: torch.nn.Module, input_dim: int, model_name: str) -> None:
+    """Save the model in ONNX format."""
+    os.makedirs('trained-models', exist_ok=True)
+    dummy_input = torch.randn(1, input_dim)
+    torch.onnx.export(
+        model,
+        dummy_input,
+        f"trained-models/{model_name}.onnx",
+        export_params=True,
+        opset_version=11,
+        input_names=['input'],
+        output_names=['output'],
+        dynamic_axes={'input': {0: 'batch_size'},
+                      'output': {0: 'batch_size'}}
     )
 
-    env.reset()
 
-    behavior_name = list(env.behavior_specs.keys())[0]
-    spec = env.behavior_specs[behavior_name]
-    print(f"Action spec:\n\tContinuous: {spec.action_spec.continuous_size}\n\tDiscrete: {spec.action_spec.discrete_branches}")
-    print(f"\nFull Action spec: {spec.action_spec}")
+class Trainer:
+    """Trainer class to manage the training process."""
 
-    input_dim = spec.observation_specs[0].shape[0]
-    output_dim = 2  #spec.action_spec.continuous_size
-    
-    policy_network = Agent(input_dim, output_dim)
-    value_network = Agent(input_dim, 1)
-    ppo = PPO(policy_network, value_network)
+    def __init__(self, config: dict):
+        self.config = config
+        self.env = self._initialize_environment()
+        self.agent = self._initialize_agent()
+        self.ppo = self._initialize_ppo()
+        self.writer = SummaryWriter()
+        self._register_signal_handlers()
+        self.global_step = 0
 
-    
-    try:
-        for episode in range(1000):
-            env.reset()
-            decision_steps, terminal_steps = env.get_steps(behavior_name)
+    def _initialize_environment(self) -> UnityEnvironmentWrapper:
+        env_config = self.config['environment']
+        env = UnityEnvironmentWrapper(
+            file_name=env_config.get('file_name'),
+            worker_id=env_config.get('worker_id', 0),
+            base_port=env_config.get('base_port', 5004),
+            no_graphics=env_config.get('no_graphics', False),
+            seed=env_config.get('seed', 12345),
+            time_scale=env_config.get('time_scale', 1.0),
+            width=env_config.get('width', 720),
+            height=env_config.get('height', 480),
+            quality_level=env_config.get('quality_level', 0),
+            target_frame_rate=env_config.get('target_frame_rate', 60)
+        )
+        return env
 
-            if len(decision_steps) == 0:
-                print("No agents found in environment")
-                continue
+    def _initialize_agent(self):
+        observation_dim = self.env.get_observation_spec().shape[0]
+        action_dim = self.env.get_action_spec().continuous_size
+        hidden_size = self.config['training'].get('hidden_size', 128)
+        use_enn = self.config['training'].get('use_enn', False)
 
-            states, actions, rewards, log_probs, values = [],[],[],[],[]
-            done = False
+        if use_enn:
+            enn_config = self.config['enn_config']
+            agent = PPOAgentWithENN(
+                observation_dim,
+                action_dim,
+                hidden_size=hidden_size,
+                enn_config=enn_config
+            )
+        else:
+            agent = PPOAgent(
+                observation_dim,
+                action_dim,
+                hidden_size=hidden_size
+            )
+
+        self.use_enn = use_enn
+        self.observation_dim = observation_dim
+        return agent
+
+    def _initialize_ppo(self):
+        training_config = self.config['training']
+        learning_rate = training_config.get('learning_rate', 3e-4)
+        clip_param = training_config.get('clip_param', 0.2)
+        max_grad_norm = training_config.get('max_grad_norm', 0.5)
+        entropy_coef = training_config.get('entropy_coef', 0.01)
+
+        ppo = PPO(
+            policy_network=self.agent.policy_net,
+            value_network=self.agent.value_net,
+            clip_param=clip_param,
+            lr=learning_rate,
+            max_grad_norm=max_grad_norm,
+            entropy_coef=entropy_coef
+        )
+        return ppo
+
+    def _register_signal_handlers(self):
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
+    def _signal_handler(self, signum, frame):
+        logger.info('\nSaving model before exit...')
+        self.save()
+        self.env.close()
+        sys.exit(0)
+
+    def train(self):
+        training_config = self.config['training']
+        num_episodes = training_config.get('num_episodes', 1000)
+        max_steps_per_episode = training_config.get('max_steps_per_episode', 1000)
+        gamma = training_config.get('gamma', 0.99)
+        lam = training_config.get('lam', 0.95)
+
+        for episode in range(num_episodes):
+            self.env.reset()
+            episode_reward = 0
             steps = 0
-            print(f"Training episode {episode}")
-            while not done and steps < 1000:
-                state = decision_steps.obs[0][0]
+            done = False
 
-                # get action from policy
-                state_tensor = torch.tensor(state, dtype=torch.float32)
-                action, log_prob = policy_network.act(state_tensor)
+            states = []
+            actions = []
+            rewards = []
+            log_probs = []
+            values = []
+            dones = []
 
-                # take action
-                action_array = action.detach().reshape(1,2)
-                continuous_action = np.zeros((1,2))
-                continuous_action[0] = action_array
-                discrete_actions = np.zeros((1,1), dtype=np.float32)
-                discrete_actions[0,0] = 0
-                action_tuple = ActionTuple(continuous=continuous_action, discrete=discrete_actions)
-                env.set_actions(behavior_name, action_tuple)
+            logger.info(f"Starting Episode {episode}")
 
-                # next state and reward
-                env.step()
-                decision_steps, terminal_steps = env.get_steps(behavior_name)
+            while not done and steps < max_steps_per_episode:
+                obs_batch, reward_batch, done_batch = self.env.get_obs()
 
-                done = len(terminal_steps) > 0
+                if len(obs_batch) == 0:
+                    logger.warning("No agents found in environment")
+                    break
 
-                if done:
-                    reward = terminal_steps.reward[0]
-                else:
-                    reward = decision_steps.reward[0] if len(decision_steps) > 0 else 0.0
-                
-                states.append(torch.from_numpy(state).float())
-                actions.append(action.detach().clone())
-                rewards.append(reward)
-                log_probs.append(log_prob)
-                values.append(value_network(state_tensor).item())
-                
-            if len(states) > 0:
-                advantages = compute_advantages(rewards, values)
-                rewards_tensor = torch.tensor(rewards, dtype=torch.float32)
+                actions_batch = []
+                log_probs_batch = []
+                values_batch = []
+
+                for idx, obs in enumerate(obs_batch):
+                    state_tensor = torch.tensor(obs, dtype=torch.float32)
+
+                    if self.use_enn:
+                        # Implement retrieval of nearby agents and hazards
+                        nearby_agents = None
+                        nearby_hazards = None
+                        action, log_prob, value = self.agent.act(
+                            state_tensor, nearby_agents, nearby_hazards
+                        )
+                    else:
+                        action, log_prob, value = self.agent.act(state_tensor)
+
+                    actions_batch.append(action.detach().numpy())
+                    log_probs_batch.append(log_prob.item())
+                    values_batch.append(value.item())
+
+                    # Store experiences
+                    states.append(state_tensor)
+                    actions.append(torch.tensor(action.detach(), dtype=torch.float32))
+                    rewards.append(reward_batch[idx])
+                    log_probs.append(log_prob.item())
+                    values.append(value.item())
+                    dones.append(done_batch[idx])
+
+                actions_array = np.vstack(actions_batch)
+                self.env.set_actions(actions_array)
+                self.env.step()
+
+                episode_reward += sum(reward_batch)
+                steps += 1
+                self.global_step += 1
+
+                if any(done_batch):
+                    done = True
+
+            if len(rewards) > 0:
+                advantages = compute_gae(rewards, values, dones, gamma, lam)
+                returns = advantages + torch.tensor(values, dtype=torch.float32)
+
+                # Convert lists to tensors
                 states_tensor = torch.stack(states)
                 actions_tensor = torch.stack(actions)
-                log_probs_tensor = torch.tensor([lp.item() for lp in log_probs], dtype=torch.float32)
-                
-                ppo.update(states_tensor, actions_tensor, log_probs_tensor, rewards_tensor, advantages)
-                print(f"Episode {episode} completed with {len(states)} steps and final reward {sum(rewards):.2f}")
+                old_log_probs_tensor = torch.tensor(log_probs, dtype=torch.float32)
 
-    except KeyboardInterrupt:
-        print(f"Training interrupted by user")
-    finally:  
-        env.close()
-    
+                # Update the policy and value networks
+                self.ppo.update(
+                    states_tensor,
+                    actions_tensor,
+                    old_log_probs_tensor,
+                    returns,
+                    advantages
+                )
+
+                # Logging
+                self.writer.add_scalar('Episode Reward', episode_reward, episode)
+                logger.info(
+                    f"Episode {episode} completed. "
+                    f"Total Reward: {episode_reward:.2f}, "
+                    f"Steps: {steps}"
+                )
+
+        self.save()
+        self.env.close()
+
+    def save(self):
+        model_name = 'policy_network_with_enn' if self.use_enn else 'policy_network'
+        save_model(self.agent, self.observation_dim, model_name)
+
+
 if __name__ == "__main__":
-    main()
+    config_path = 'config.yaml'
+    config = load_config(config_path)
+    trainer = Trainer(config)
+    trainer.train()
