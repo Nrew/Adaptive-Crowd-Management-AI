@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from agents import PPOAgent
 from agents.ENNAgent import PPOAgentWithENN
-from enviroment.unity_wrapper import UnityEnvironmentWrapper
+from environment.unity_wrapper import UnityEnvironmentWrapper
 from ppo import PPO
 
 # Configure logging
@@ -21,9 +21,11 @@ logger = logging.getLogger(__name__)
 
 def load_config(config_path: str) -> dict:
     """Load configuration from a YAML file."""
+    print(config_path)
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
+
 
 def compute_gae(
     rewards: List[float],
@@ -240,7 +242,7 @@ class Trainer:
 
 
 if __name__ == "__main__":
-    config_path = 'ai_models\config\config.yaml'
+    config_path = 'ai_models\config\config.yaml' 
     config = load_config(config_path)
     trainer = Trainer(config)
     trainer.train()
