@@ -1,3 +1,4 @@
+import pytest
 import torch
 # from ai_models.agents import Agent
 from ai_models.agents.PPOAgent import PPOAgent
@@ -51,7 +52,28 @@ def test_ppoagent_with_enn_init():
         - `policy_head` (outputs action probabilities).
         - `value_head` (outputs value estimates for the state).
     """
-    agent = PPOAgentWithENN(observation_dim=4, action_dim=2)
+    enn_config = {
+        'emotional': {
+            'network': {
+                'hidden_size': 128,
+                'num_attention_heads': 4,
+                'dropout': 0.1
+            }
+        },
+        'cache': {
+            'hazard_capacity': 100,
+            'social_capacity': 100,
+            'ttl': 0.1
+        },
+        'safety_bounds': {
+            'max_panic_increase': 0.3,
+            'max_stress_increase': 0.2,
+            'min_stamina': 0.1,
+            'max_social_influence': 0.5,
+            'max_hazard_impact': 0.4
+        }
+    }
+    agent = PPOAgentWithENN(observation_dim=4, action_dim=2, enn_config=enn_config)
     assert isinstance(agent, PPOAgentWithENN)
     assert hasattr(agent, "enn"), "PPOAgentWithENN should have an Emotional Neural Network"
     assert hasattr(agent, "policy_head"), "PPOAgentWithENN should have a policy head"
@@ -64,7 +86,28 @@ def test_ppoagent_with_enn_forward():
         - Produces an action mean tensor with the correct shape.
         - Produces a scalar value estimate for the state.
     """
-    agent = PPOAgentWithENN(observation_dim=4, action_dim=2)
+    enn_config = {
+        'emotional': {
+            'network': {
+                'hidden_size': 128,
+                'num_attention_heads': 4,
+                'dropout': 0.1
+            }
+        },
+        'cache': {
+            'hazard_capacity': 100,
+            'social_capacity': 100,
+            'ttl': 0.1
+        },
+        'safety_bounds': {
+            'max_panic_increase': 0.3,
+            'max_stress_increase': 0.2,
+            'min_stamina': 0.1,
+            'max_social_influence': 0.5,
+            'max_hazard_impact': 0.4
+        }
+    }
+    agent = PPOAgentWithENN(observation_dim=4, action_dim=2, enn_config=enn_config)
     observation = torch.tensor([0.1, -0.2, 0.3, 0.4], dtype=torch.float32)
     action_mean, value = agent.forward(observation)
     assert action_mean.shape == torch.Size([2]), "Action mean shape mismatch"
@@ -95,6 +138,6 @@ def test_emotional_state_to_tensor():
     state = EmotionalState(panic=0.5, stress=0.3, stamina=0.8)
     tensor = state.to_tensor(torch.device('cpu'))
     assert tensor.shape == torch.Size([3]), "Tensor shape mismatch"
-    assert tensor[0].item() == 0.5, "Panic value mismatch"
-    assert tensor[1].item() == 0.3, "Stress value mismatch"
-    assert tensor[2].item() == 0.8, "Stamina value mismatch"
+    assert tensor[0].item() == pytest.approx(0.5, rel=1e-5), "Panic value mismatch"
+    assert tensor[1].item() == pytest.approx(0.3, rel=1e-5), "Stress value mismatch"
+    assert tensor[2].item() == pytest.approx(0.8, rel=1e-5), "Stamina value mismatch"
