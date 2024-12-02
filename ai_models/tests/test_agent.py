@@ -109,7 +109,11 @@ def test_ppoagent_with_enn_forward():
     }
     agent = PPOAgentWithENN(observation_dim=4, action_dim=2, enn_config=enn_config)
     observation = torch.tensor([0.1, -0.2, 0.3, 0.4], dtype=torch.float32)
-    action_mean, value = agent.forward(observation)
+
+    nearby_hazards = torch.tensor([[[0.5, 0.5, 0.8]]], dtype=torch.float32)  # Example hazards tensor
+    hazard_mask = torch.tensor([[1]], dtype=torch.bool)  # Example mask for hazards
+
+    action_mean, value = agent.forward(observation, nearby_hazards=nearby_hazards, hazard_mask=hazard_mask)
     assert action_mean.shape == torch.Size([2]), "Action mean shape mismatch"
     assert value.ndim == 0, "Value should be a scalar"
 
