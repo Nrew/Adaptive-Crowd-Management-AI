@@ -1,6 +1,6 @@
 import torch
 from ppo import PPO
-from agent import Agent
+from ai_models.agents import Agent
 
 def test_ppo_init():
     policy = Agent(input_dim=4, output_dim=2)

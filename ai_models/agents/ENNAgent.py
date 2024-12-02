@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from typing import Optional, Tuple
 
 from .EmotionalState import EmotionalState
-from models.ENN import EmotionalNetwork
+from ..models.ENN import EmotionalNetwork
 
 
 class PPOAgentWithENN(nn.Module):

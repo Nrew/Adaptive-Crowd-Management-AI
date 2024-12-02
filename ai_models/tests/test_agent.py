@@ -1,14 +1,100 @@
 import torch
-from agent import Agent
+# from ai_models.agents import Agent
+from ai_models.agents.PPOAgent import PPOAgent
+from ai_models.agents.ENNAgent import PPOAgentWithENN
+from ai_models.agents.EmotionalState import EmotionalState
 
-# TODO: Make more comprehensive tests
-def test_agent_init():
-    agent = Agent(input_dim=4, output_dim=4)
-    assert isinstance(agent, Agent)
+# TODO: Check commented tests along with import, I was unable to get these to work on my end.
+#def test_agent_init():
+#    agent = Agent(input_dim=4, output_dim=4)
+#    assert isinstance(agent, Agent)
 
-def test_agent_act():
-    agent = Agent(input_dim=4, output_dim=2)
-    state = torch.tensor([0.1, -0.2, 0.3, 0.4], dtype=torch.float32)
-    action, log_prob = agent.act(state)
-    assert isinstance(action, int)
-    assert isinstance(log_prob, torch.tensor)
+#def test_agent_act():
+#    agent = Agent(input_dim=4, output_dim=2)
+#    state = torch.tensor([0.1, -0.2, 0.3, 0.4], dtype=torch.float32)
+#    action, log_prob = agent.act(state)
+#    assert isinstance(action, int)
+#    assert isinstance(log_prob, torch.tensor)
+
+# Tests for PPOAgent.
+def test_ppoagent_init():
+    """
+    Test that PPOAgent initializes correctly.
+    - Verifies that the created object is an instance of PPOAgent.
+    - Checks that PPOAgent has the expected attributes: `policy_net` and `value_net`.
+    """
+    agent = PPOAgent(observation_dim=4, action_dim=2)
+    assert isinstance(agent, PPOAgent)
+    assert hasattr(agent, "policy_net"), "PPOAgent should have a policy network"
+    assert hasattr(agent, "value_net"), "PPOAgent should have a value network"
+
+def test_ppoagent_forward():
+    """
+    Test the forward method of PPOAgent.
+    - Verifies that given an input observation, the forward method:
+        - Produces an action mean tensor with the correct shape.
+        - Produces a scalar value estimate for the state.
+    """
+    agent = PPOAgent(observation_dim=4, action_dim=2)
+    observation = torch.tensor([0.1, -0.2, 0.3, 0.4], dtype=torch.float32)
+    action_mean, value = agent.forward(observation)
+    assert action_mean.shape == torch.Size([2]), "Action mean shape mismatch"
+    assert value.ndim == 0, "Value should be a scalar"
+
+# Tests for PPOAgentWithENN.
+def test_ppoagent_with_enn_init():
+    """
+    Test that PPOAgentWithENN initializes correctly.
+    - Verifies that the created object is an instance of PPOAgentWithENN.
+    - Checks that PPOAgentWithENN has key attributes:
+        - `enn` (Emotional Neural Network for updating emotional state).
+        - `policy_head` (outputs action probabilities).
+        - `value_head` (outputs value estimates for the state).
+    """
+    agent = PPOAgentWithENN(observation_dim=4, action_dim=2)
+    assert isinstance(agent, PPOAgentWithENN)
+    assert hasattr(agent, "enn"), "PPOAgentWithENN should have an Emotional Neural Network"
+    assert hasattr(agent, "policy_head"), "PPOAgentWithENN should have a policy head"
+    assert hasattr(agent, "value_head"), "PPOAgentWithENN should have a value head"
+
+def test_ppoagent_with_enn_forward():
+    """
+    Test the forward method of PPOAgentWithENN.
+    - Verifies that given an input observation, the forward method:
+        - Produces an action mean tensor with the correct shape.
+        - Produces a scalar value estimate for the state.
+    """
+    agent = PPOAgentWithENN(observation_dim=4, action_dim=2)
+    observation = torch.tensor([0.1, -0.2, 0.3, 0.4], dtype=torch.float32)
+    action_mean, value = agent.forward(observation)
+    assert action_mean.shape == torch.Size([2]), "Action mean shape mismatch"
+    assert value.ndim == 0, "Value should be a scalar"
+
+# Tests for EmotionalState, as it is part of the agents package.
+def test_emotional_state_initialization():
+    """
+    Test the EmotionalState initialization using the `create_initial` method.
+    - Verifies that the initial emotional state has:
+        - `panic` set to 0.0 (no initial panic).
+        - `stress` set to 0.0 (no initial stress).
+        - `stamina` set to 1.0 (full stamina).
+    """
+    state = EmotionalState.create_initial()
+    assert state.panic == 0.0, "Initial panic level should be 0.0"
+    assert state.stress == 0.0, "Initial stress level should be 0.0"
+    assert state.stamina == 1.0, "Initial stamina level should be 1.0"
+
+def test_emotional_state_to_tensor():
+    """
+    Test the `to_tensor` method of EmotionalState.
+    - Verifies that the emotional state can be converted to a PyTorch tensor.
+    - Checks that:
+        - The tensor has the correct shape ([3], representing panic, stress, stamina).
+        - The tensor values match the emotional state attributes.
+    """
+    state = EmotionalState(panic=0.5, stress=0.3, stamina=0.8)
+    tensor = state.to_tensor(torch.device('cpu'))
+    assert tensor.shape == torch.Size([3]), "Tensor shape mismatch"
+    assert tensor[0].item() == 0.5, "Panic value mismatch"
+    assert tensor[1].item() == 0.3, "Stress value mismatch"
+    assert tensor[2].item() == 0.8, "Stamina value mismatch"

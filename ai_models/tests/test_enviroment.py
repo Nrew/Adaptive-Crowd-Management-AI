@@ -1,4 +1,4 @@
-from ai_models.enviroment.unity_wrapper import UnityEnvWrapper
+from ai_models.environment.unity_wrapper import UnityEnvWrapper
 
 # TODO: Test enviroment when its all set up.
 def test_enviroment_init():
