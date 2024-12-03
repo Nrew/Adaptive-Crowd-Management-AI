@@ -103,7 +103,7 @@ class FeatureCache:
         self.timestamps[key_hash] = time.time()
     
 class AttentionModule(nn.Module):
-    """Multi-head attention block for socual influence."""
+    """Multi-head attention block for social influence."""
     def __init__(
         self, 
         embed_dim: int,
@@ -185,6 +185,17 @@ class AttentionModule(nn.Module):
         # No attention weights returned for Flash Attention
         return output, None
 
+class EmotionalPredictor(FeatureProcessor):
+    """
+    Predicts new emotional states.
+    """
+    def __init__(self, hidden_dim, dropout = 0.1):
+        super(EmotionalPredictor, self).__init__(
+            input_dim=hidden_dim * 3, # Combined features
+            hidden_dim=hidden_dim,
+            output_dim=3,             # [panic, stress, stamina]
+            dropout=dropout)
+
 class HazardProcessor(FeatureProcessor):
     """
     Process hazard information
@@ -206,18 +217,6 @@ class SocialProcessor(FeatureProcessor):
             hidden_dim=hidden_dim,
             output_dim=hidden_dim,
             dropout=dropout)
-
-class EmotionalPredictor(FeatureProcessor):
-    """
-    Predicts new emotional states.
-    """
-    def __init__(self, hidden_dim, dropout = 0.1):
-        super(EmotionalPredictor, self).__init__(
-            input_dim=hidden_dim * 3, # Combined features
-            hidden_dim=hidden_dim,
-            output_dim=3,             # [panic, stress, stamina]
-            dropout=dropout)
-
 
 class EmotionalNetwork(nn.Module):
     """
