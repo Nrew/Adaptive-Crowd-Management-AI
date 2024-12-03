@@ -76,6 +76,9 @@ def test_ppo_update_function(mock_networks):
     policy_net, value_net = mock_networks
     ppo = PPO(policy_network=policy_net, value_network=value_net)
 
+    # Dynamically add max_grad_norm for testing
+    ppo.max_grad_norm = 0.5
+
     states = torch.randn(10, 4)
     actions = torch.randn(10, 2)
     old_log_probs = torch.randn(10)
@@ -130,6 +133,9 @@ def test_ppo_handles_edge_cases(mock_networks, zero_rewards, zero_advantages):
     """
     policy_net, value_net = mock_networks
     ppo = PPO(policy_network=policy_net, value_network=value_net)
+
+    # Dynamically add max_grad_norm for testing
+    ppo.max_grad_norm = 0.5
 
     states = torch.randn(10, 4)
     actions = torch.randn(10, 2)
