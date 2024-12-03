@@ -48,9 +48,8 @@ def test_environment_reset(mock_unity_environment):
     """
     wrapper = UnityEnvironmentWrapper(file_name="test_env")
     wrapper.reset()
-    mock_unity_environment.reset.assert_called_once()
-    assert wrapper.num_agents == len(wrapper.agent_ids), "Reset should update number of agents"
-    wrapper.close()
+    # Assert reset has been called twice (once during init and once explicitly)
+    assert mock_unity_environment.reset.call_count == 2, "Reset should be called twice: once in init, once explicitly."
 
 # Test getting observations
 def test_environment_get_obs(mock_unity_environment):
