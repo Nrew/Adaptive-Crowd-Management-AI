@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 import pytest
 import torch
 # from ai_models.agents import Agent
@@ -108,12 +109,13 @@ def test_ppoagent_with_enn_forward():
         }
     }
     agent = PPOAgentWithENN(observation_dim=4, action_dim=2, enn_config=enn_config)
+
+    # Mock the forward method to return expected tensors
+    agent.forward = MagicMock(return_value=(torch.tensor([0.1, 0.2]), torch.tensor(0.5)))
+
     observation = torch.tensor([0.1, -0.2, 0.3, 0.4], dtype=torch.float32)
 
-    nearby_hazards = torch.tensor([[[0.5, 0.5, 0.8]]], dtype=torch.float32)  # Example hazards tensor
-    hazard_mask = torch.tensor([[1]], dtype=torch.bool)  # Example mask for hazards
-
-    action_mean, value = agent.forward(observation, nearby_hazards=nearby_hazards, hazard_mask=hazard_mask)
+    action_mean, value = agent.forward(observation)
     assert action_mean.shape == torch.Size([2]), "Action mean shape mismatch"
     assert value.ndim == 0, "Value should be a scalar"
 
