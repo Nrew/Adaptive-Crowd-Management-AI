@@ -2,13 +2,18 @@ import pytest
 import torch
 import torch.nn as nn
 from ai_models.ppo import PPO
-#from ai_models.agents import Agent
 
-#def test_ppo_init():
-#    policy = Agent(input_dim=4, output_dim=2)
-#    value = Agent(input_dim=4, output_dim=2)
-#    ppo = PPO(policy_network=policy, value_network=value)
-#    assert isinstance(ppo, PPO)
+""""
+Testing for the PPO class implementation
+
+Ensures that:
+- PPO initializes correctly with policy and value networks, and the optimizer is set up properly.
+- The `__compute_loss` function calculates valid scalar losses with expected shapes and values using synthetic data.
+- The `update` method applies gradients to policy and value networks, leading to updated parameters.
+- The loss function respects the clipping behavior defined by the `clip_epsilon` parameter.
+- PPO handles edge cases, such as zero rewards or advantages, without errors.
+- The calculation of log probabilities and entropy for the policy network's output distribution is accurate.
+"""
 
 # Mock Networks
 class MockPolicyNetwork(nn.Module):

@@ -3,13 +3,14 @@ import pytest
 from unittest.mock import MagicMock, patch
 from ai_models.environment.unity_wrapper import UnityEnvironmentWrapper
 
-# TODO: Test enviroment when its all set up.
-#def test_enviroment_init():
-#    env = UnityEnvWrapper(file_name="")
-#    assert env.behavior_name is not None
-#    env.close()
+"""
+Testing for our UnityEnvironmentWrapper
 
-# Mocking our UnityEnvironment along with related components. 
+Ensures that:
+- Interacts correctly with the Unity environment (using mocked methods).
+- Properly handles initialization, reset, stepping, and data retrieval. 
+- Provides valid observations, rewards, action specificatiions, observation specifications, and agent IDs.
+"""
 
 @pytest.fixture
 def mock_unity_environment():
@@ -25,7 +26,6 @@ def mock_unity_environment():
         mock_env_class.return_value = mock_env
         yield mock_env
 
-# Test UnityEnvWrapper initialization
 def test_environment_init(mock_unity_environment):
     """
     Test the initialization of UnityEnvironmentWrapper.
@@ -39,7 +39,6 @@ def test_environment_init(mock_unity_environment):
     wrapper.close()
     mock_unity_environment.close.assert_called_once()
 
-# Test reset functionality
 def test_environment_reset(mock_unity_environment):
     """
     Test the reset functionality of UnityEnvironmentWrapper.
@@ -51,7 +50,6 @@ def test_environment_reset(mock_unity_environment):
     # Assert reset has been called twice (once during init and once explicitly)
     assert mock_unity_environment.reset.call_count == 2, "Reset should be called twice: once in init, once explicitly."
 
-# Test getting observations
 def test_environment_get_obs(mock_unity_environment):
     """
     Test the get_obs method of UnityEnvironmentWrapper.
@@ -75,7 +73,6 @@ def test_environment_get_obs(mock_unity_environment):
     assert isinstance(dones, np.ndarray), "Dones should be a numpy array"
     wrapper.close()
 
-# Test setting actions
 def test_environment_set_actions(mock_unity_environment):
     """
     Test the set_actions method of UnityEnvironmentWrapper.
@@ -88,7 +85,6 @@ def test_environment_set_actions(mock_unity_environment):
     mock_unity_environment.set_actions.assert_called_once()
     wrapper.close()
 
-# Test stepping the environment
 def test_environment_step(mock_unity_environment):
     """
     Test the step method of UnityEnvironmentWrapper.
@@ -100,7 +96,6 @@ def test_environment_step(mock_unity_environment):
     mock_unity_environment.step.assert_called_once()
     wrapper.close()
 
-# Test getting action specifications
 def test_environment_get_action_spec(mock_unity_environment):
     """
     Test the get_action_spec method of UnityEnvironmentWrapper.
@@ -115,7 +110,6 @@ def test_environment_get_action_spec(mock_unity_environment):
     assert action_spec == mock_action_spec, "Action spec should match the mocked spec"
     wrapper.close()
 
-# Test getting observation specifications
 def test_environment_get_observation_spec(mock_unity_environment):
     """
     Test the get_observation_spec method of UnityEnvironmentWrapper.
@@ -130,7 +124,6 @@ def test_environment_get_observation_spec(mock_unity_environment):
     assert observation_spec == mock_observation_spec, "Observation spec should match the mocked spec"
     wrapper.close()
 
-# Test getting agent IDs
 def test_environment_get_agent_ids(mock_unity_environment):
     """
     Test the get_agent_ids method of UnityEnvironmentWrapper.

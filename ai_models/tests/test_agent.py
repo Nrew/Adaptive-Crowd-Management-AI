@@ -1,24 +1,22 @@
 from unittest.mock import MagicMock
 import pytest
 import torch
-# from ai_models.agents import Agent
 from ai_models.agents.PPOAgent import PPOAgent
 from ai_models.agents.ENNAgent import PPOAgentWithENN
 from ai_models.agents.EmotionalState import EmotionalState
 
-# TODO: Check commented tests along with import, I was unable to get these to work on my end.
-#def test_agent_init():
-#    agent = Agent(input_dim=4, output_dim=4)
-#    assert isinstance(agent, Agent)
+"""
+Testing for our PPOAgent, PPOAgentWithENN, and EmotionalState
 
-#def test_agent_act():
-#    agent = Agent(input_dim=4, output_dim=2)
-#    state = torch.tensor([0.1, -0.2, 0.3, 0.4], dtype=torch.float32)
-#    action, log_prob = agent.act(state)
-#    assert isinstance(action, int)
-#    assert isinstance(log_prob, torch.tensor)
+Ensures that:
+- PPOAgent is correctly initialized with its core components.
+- The forward method of PPOAgent functions as expected, producing valid action means and scalar state value estimates.
+- PPOAgentWithENN is correctly initialized, including its Emotional Neural Network (ENN), policy head, and value head components.
+- The forward method of PPOAgentWithENN works as intended, producing valid action means and scalar state value estimates, even with additional ENN functionality.
+- EmotionalState is initialized properly with default values for `panic`, `stress`, and `stamina`.
+- EmotionalState can be converted into a PyTorch tensor with the correct shape and matching values for its attributes.
+"""
 
-# Tests for PPOAgent.
 def test_ppoagent_init():
     """
     Test that PPOAgent initializes correctly.
@@ -43,7 +41,6 @@ def test_ppoagent_forward():
     assert action_mean.shape == torch.Size([2]), "Action mean shape mismatch"
     assert value.ndim == 0, "Value should be a scalar"
 
-# Tests for PPOAgentWithENN.
 def test_ppoagent_with_enn_init():
     """
     Test that PPOAgentWithENN initializes correctly.
@@ -119,7 +116,6 @@ def test_ppoagent_with_enn_forward():
     assert action_mean.shape == torch.Size([2]), "Action mean shape mismatch"
     assert value.ndim == 0, "Value should be a scalar"
 
-# Tests for EmotionalState, as it is part of the agents package.
 def test_emotional_state_initialization():
     """
     Test the EmotionalState initialization using the `create_initial` method.
