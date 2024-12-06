@@ -5,6 +5,7 @@ using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
 using Unity.Transforms;
+using Unity.Entities.UniversalDelegates;
 
 public class RollerAgent : Agent
 {
@@ -13,7 +14,7 @@ public class RollerAgent : Agent
     Rigidbody rBody;
 
     //public Transform Target;
-    public float forceMultiplier = 10;
+    public float forceMultiplier = 5f;
 
 
     public Vector3 areacenter = new(-5f, 2f, 2f);
@@ -23,7 +24,10 @@ public class RollerAgent : Agent
 
     private static HashSet<RollerAgent> agentsInTargetArea = new HashSet<RollerAgent>();
     private bool hasReachedTargetArea = false;
-    private static int totalAgents = 3;
+    private static int totalAgents = 11;
+
+    public float rayDistance = 5f;
+    public float rayAngles = 12;
 
 
     void Start()
@@ -35,14 +39,14 @@ public class RollerAgent : Agent
             CreateTargetArea();
             targetAreaCreated = true;
         }
-
     }
     public override void OnEpisodeBegin()
     {
         this.rBody.angularVelocity = Vector3.zero;
         this.rBody.linearVelocity = Vector3.zero;
         this.transform.localPosition = new Vector3(Random.Range(-10, 0), 2f, Random.Range(30f, 40f));
-
+        agentsInTargetArea = new HashSet<RollerAgent>();
+        hasReachedTargetArea = false;
 
         if (this.transform.localPosition.y < 0)
         {
@@ -79,6 +83,24 @@ public class RollerAgent : Agent
         sensor.AddObservation(rBody.linearVelocity.x);
         sensor.AddObservation(rBody.linearVelocity.z);
         sensor.AddObservation(hasReachedTargetArea);
+
+        // detect walls
+        float angleStep = 360f / rayAngles;
+        for (float angle = 0; angle < 360; angle += angleStep)
+        {
+            Vector3 direction = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+            Ray ray = new Ray(this.transform.position, direction);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray, out hit, rayDistance))
+            {
+                sensor.AddObservation(hit.distance / rayDistance);  // Normalized distance to obstacle
+            }
+            else
+            {
+                sensor.AddObservation(1.0f);  // No obstacle detected
+            }
+        }
     }
 
     private bool isInTargetArea()
@@ -106,15 +128,78 @@ public class RollerAgent : Agent
             controlSignal.x = actionBuffers.ContinuousActions[0];
             controlSignal.z = actionBuffers.ContinuousActions[1];
             rBody.AddForce(controlSignal * forceMultiplier);
+
+            float movementReward = rBody.linearVelocity.magnitude * 0.002f;
+            movementReward = Mathf.Min(movementReward, 0.001f);
+            AddReward(movementReward);
+
+            bool tooCloseToWall = false;
+            bool closeEnough = false;
+            int wallsDetected = 0;
+            float minimumDistanceFromWall = 1.5f;
+            //float closeToWall = 2.5f;
+
+            for (float angle = 0; angle < 360f - float.Epsilon; angle += 360f / rayAngles) {
+                Vector3 direction = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+                if (Physics.Raycast(this.transform.position, direction, out RaycastHit hit, minimumDistanceFromWall))
+                {
+                    tooCloseToWall = true;
+                    wallsDetected++;
+                }
+
+            }
+            if (tooCloseToWall)
+            {
+                AddReward(-0.0035f * wallsDetected);
+            }
+            else
+            {
+                AddReward(0.0035f);
+            }
+
+            AddReward(-0.0001f);
+
+            // penalize being close to other agents
+            //bool tooCloseToOthers = false;
+            //RollerAgent[] agents = Object.FindObjectsByType<RollerAgent>(FindObjectsSortMode.None);
+            //foreach (RollerAgent other in agents)
+            //{
+            //    if (other != this)
+            //    {
+            //        float agentDistance = Vector3.Distance(
+            //            this.transform.localPosition,
+            //            other.transform.localPosition
+            //        );
+            //        if (agentDistance < 2f)
+            //        {
+            //            tooCloseToOthers = true;
+            //            //AddReward(-0.02f * (2f - agentDistance));
+            //            break;
+            //        }
+            //    }
+            //}
+
+            //// reward for good positioning
+            //if(!tooCloseToWall && !tooCloseToOthers)
+            //{
+            //    AddReward(0.03f);
+            //}
+            //// penalize for not moving
+            //if (rBody.linearVelocity.magnitude < 0.1f)
+            //{
+            //    AddReward(-0.01f);
+            //}
         }
+
+        
 
         if (isInTargetArea() && !hasReachedTargetArea)
         {
             hasReachedTargetArea = true;
             agentsInTargetArea.Add(this);
-            SetReward(100.0f);
+            AddReward(100.0f);
             this.rBody.linearVelocity = Vector3.zero;
-            Destroy(this.GetComponent<Collider>());
+            //Destroy(this.GetComponent<Collider>());
 
             if (AllAgentsInTargetArea())
             {
@@ -122,37 +207,10 @@ public class RollerAgent : Agent
                 foreach (RollerAgent agent in allAgents)
                 {
                     agent.EndEpisode();
+                    agentsInTargetArea = new HashSet<RollerAgent>();
                 }
             }
         }
-        // If it falls off the edge, end all episodes and reset
-        else if (this.transform.localPosition.y < -1)
-        {
-            SetReward(-5f);
-            RollerAgent[] allAgents = Object.FindObjectsByType<RollerAgent>(FindObjectsSortMode.None);
-            foreach (RollerAgent agent in allAgents)
-            {
-                agent.EndEpisode();
-            }
-        }
-        else if (!hasReachedTargetArea)
-        {
-            //float previousDistance = Vector3.Distance(this.transform.localPosition - rBody.linearVelocity * Time.fixedDeltaTime, areacenter);
-            //float distanceReward = (previousDistance - distanceToTarget);
-            //float distanceToAreaCenter = Vector3.Distance(this.transform.localPosition, areacenter);
-
-            //AddReward(distanceReward * 0.001f);
-            float velocityReward = rBody.linearVelocity.magnitude * 0.01f;
-            AddReward(velocityReward);
-            AddReward(-0.01f);
-
-            //if (distanceToAreaCenter > 30f)
-            //{
-            //    AddReward(-0.01f);
-            //}
-        }
-
-
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
