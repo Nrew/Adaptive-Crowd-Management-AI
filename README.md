@@ -7,6 +7,7 @@
 
 - [Project Overview](#project-overview)
 - [Features](#features)
+- [Files For Grading Purposes](#files-for-grading-purposes)
 - [Technologies Used](#technologies-used)
 - [Project Structure](#project-structure)
 - [Setup and Installation](#setup-and-installation)
@@ -26,6 +27,16 @@ An AI-based system designed to model, simulate, and predict crowd behavior in em
 - **Emotion and Panic Level Analysis Using Neural Networks**
 - **Interactive Human-in-the-Loop Dashboard**
 - **Data Visualization and Post-Simulation Analytics**
+
+## Files For Grading Purposes
+AI work was mostly done in /dev, training and AI modifications done in /feature--training, map files in /unity-map, test code in /test
+- dev/ai_models - source code for everything related to the agents, including the PPO, ENN, and other files to get everything working
+- [dev/unity/Assets/trainingScript.cs](https://github.com/Nrew/Adaptive-Crowd-Management-AI/blob/dev/unity/Assets/trainingScript.cs) - main file for reward structures and controlling agents in unity
+- /dev/unity-map - the 3 maps we used for training and results
+
+Commit histories on across all 5 branches show who did what work.
+
+
 
 ## Technologies Used
 
